@@ -72,7 +72,36 @@ def demix_track(config, model, mix, device, first_chunk_time=None):
                 if first_chunk and i == 0:
                     chunk_start_time = time.time()
 
-                x = model(part.unsqueeze(0))[0]
+                model_in = part.unsqueeze(0)
+                print("model_in.shape = ", model_in.shape)
+
+                print("type of model = ", type(model))
+                if i == 0 and False:
+                    from openvino.tools import mo
+                    from openvino.runtime import serialize
+                    print("converting to onnx...")
+                    torch.onnx.export(model, (model_in), "model.onnx", input_names=["input"], output_names=["output"])
+                    print("conversion to onnx done..")
+
+                if False:
+                    model_out = model(model_in)
+                else:
+                    stft_repr, stft_window, istft_length = model.pre_forward(model_in)
+
+                    if i == 0 and False:
+                        print("converting to onnx...")
+                        torch.onnx.export(model, (stft_repr), "mel_band_reformer.onnx", input_names=["stft_repr"], output_names=["recon_audio", "masks"])
+                        print("conversion to onnx done..")
+
+                    stft_repr, masks = model(stft_repr)
+                    model_out = model.post_forward(stft_repr, masks, stft_window, istft_length)
+
+
+                print("model_out.shape = ", model_out.shape)
+
+
+                print("converting to csm to onnx model..")
+                x = model_out[0]
 
                 window = windowing_array.clone()
                 if i == 0:
